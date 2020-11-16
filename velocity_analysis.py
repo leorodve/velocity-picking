@@ -33,8 +33,8 @@ def plot_data(plot1, plot2, vm, window, title):
         lvl = np.arange(0,max_value, max_value/31)
         color_map = matplotlib.cm.get_cmap('gist_rainbow')
         reversed_color_map = color_map.reversed()
-        b = ax2.contourf(plot2, lvl, origin='upper', extent=[min_vel,max_vel,(ns-1)*dt,0], cmap=reversed_color_map)
-        ax2.set_xlim(min_vel,max_vel)
+        b = ax2.contourf(plot2, lvl, origin='upper', extent=[0, 10, ns*dt, 0], cmap=reversed_color_map)
+        ax2.set_xticklabels(np.arange(min_vel,max_vel, int((max_vel-min_vel)/5)))
         ax2.set_xlabel('Velocity [m/s]')
         divider = make_axes_locatable(ax2)
         cax = divider.new_horizontal(size="4%", pad=0.03)
@@ -65,8 +65,7 @@ def offset_calc(gather):
 def mouse_click(event):
     my_label = ttk.Label(root, image=black_square)
     my_label.place(x=event.x-6, y=event.y-6) # place a black square over the position you clicked
-    #Save the velocity picks to a list
-    vel_picks.append([event.x, event.y])
+    vel_picks.append([event.x, event.y]) #Save the velocity picks to a list
 
 def export_vel_file():
     vel_filename = filedialog.asksaveasfilename(initialdir="/", defaultextension=".*", filetypes=(("Text Files", "*.txt"), ("SEG-Y files", "*.sgy"), ("all files", "*.*")))
@@ -149,7 +148,7 @@ def display_data_window():
     Offset = offset_calc(st)
     Offsetmax = int(np.amax(Offset))
     Offsetmin = int(np.amin(Offset))
-    vel = np.arange(min_vel, max_vel, (max_vel-min_vel)/(ns+1))
+    vel = np.arange(min_vel, max_vel, (max_vel-min_vel)/11)
     vel_spectrum = functions.calc_velocity_spectrum(Section, dt_s, Offset, vel)    
     max_value = np.amax(vel_spectrum)
     vel_picks = []
