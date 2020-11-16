@@ -45,7 +45,7 @@ def calc_velocity_spectrum(cmp, sample_rate, offsets, velocities):
     velocity_spectrum = np.zeros([nsamples, len(velocities)])
     times = np.arange(0, nsamples*sample_rate, sample_rate)
     i = 0
-    while i <= nsamples:
+    while i <= 10:
         for a, t0 in enumerate(times): 
             for j, x in enumerate(offsets): 
                 t = reflection_time(t0, x, velocities[i])
