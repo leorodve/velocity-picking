@@ -89,3 +89,15 @@ def create_velocity_function(min_vel, max_vel, ns, dt, vel_picks):
             interpolator = CubicSpline(t, v) 
             vel_function[id4] = interpolator(id4)
     return vel_function, velocity_picks
+def stretch_mute(velocity, ns, dt, stretch_mute):
+    time = np.arange(0, ns*dt, dt)
+    Offset_max = np.multiply(velocity, time) * pow(np.square(1 + stretch_mute/100) - 1, 0.5)
+    return Offset_max
+
+def apply_stretch_mute(mute_function, nmo, fold):
+    for i, x in enumerate (mute_function):
+        j = int(np.floor(x/fold))
+        if j > fold:
+            j = fold
+        nmo[i, j:] = 0
+    return nmo
