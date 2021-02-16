@@ -12,6 +12,7 @@ from obspy.io.segy.core import _read_segy
 from obspy import *
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import functions
+import colorcet as cc
 
 def upload():
     global filename
@@ -31,9 +32,7 @@ def plot_data(plot1, plot2, vm, window, title):
     ax2 = figure.add_subplot(1, 2, 2)
     if title == 'Velocity Spectrum':
         lvl = np.arange(0,max_value, max_value/31)
-        color_map = matplotlib.cm.get_cmap('gist_rainbow')
-        reversed_color_map = color_map.reversed()
-        b = ax2.contourf(plot2, lvl, origin='upper', extent=[0, 10, ns*dt, 0], cmap=reversed_color_map)
+        b = ax2.contourf(plot2, lvl, origin='upper', extent=[0, 10, ns*dt, 0], cmap=cc.cm.rainbow)
         ax2.set_xticklabels(np.arange(min_vel,max_vel, int((max_vel-min_vel)/5)))
         ax2.set_xlabel('Velocity [m/s]')
         divider = make_axes_locatable(ax2)
@@ -77,11 +76,13 @@ def close_program():
     root.destroy()
 
 def NMO_window():
-    global velocity_picks
+    global velocity_picks, nmo_mute, nmo_stretch_mute
     for widget in root.winfo_children():
         widget.destroy()
     velocity_function, velocity_picks = functions.create_velocity_function(min_vel, max_vel, ns, dt, vel_picks)
     nmo = functions.nmo_correction(Section, dt_s, Offset, velocity_function)
+    nmo_stretch_mute = functions.stretch_mute(velocity_function, ns, dt_s, sm)
+    nmo_mute = functions.apply_stretch_mute(nmo_stretch_mute, nmo, fold)
     second_plot = plot_data(Section, nmo, vm, root, 'NMO corrected')
     second_plot.get_tk_widget().grid(row=0, column=0, columnspan=2)
     ttk.Button(root, text="Close program", command=close_program).grid(column=1, row=1, columnspan=1)
@@ -105,16 +106,19 @@ def welcome_window():
     ttk.Label(root, text="Maximum Velocity for CVS").grid(column=0, row=6)
     fifth_entry = ttk.Entry(root, textvariable=max_vel_entry)
     fifth_entry.grid(column=1, row=6, columnspan=2)
+    ttk.Label(root, text="Stretch mute").grid(column=0, row=7)
+    sixth_entry = ttk.Entry(root, textvariable=stretch_mute_entry)
+    sixth_entry.grid(column=1, row=7, columnspan=2)
     ttk.Button(root, text="Next", command=display_data_window).grid(column=0, row=10, columnspan=3)
     
     return root
 
 def display_data_window():
-    global ns, dt, dt_s, Section, Offset, vm, Offsetmax, Offsetmin, fold, root, vel, vel_spectrum, cmp, min_vel, max_vel, black_square, vel_picks, max_value
+    global ns, dt, dt_s, Section, Offset, vm, Offsetmax, Offsetmin, fold, root, vel, vel_spectrum, cmp, min_vel, max_vel, black_square, vel_picks, max_value, sm
     
     for widget in root.winfo_children():
         widget.destroy()
-#   Leer segy con obspy
+#   Read segy with obspy
     st = _read_segy(filename)
 
     nt = len(st.traces)                      #Number of traces in SEGY file
@@ -126,6 +130,7 @@ def display_data_window():
     SG = no_cmp.get() // 2                  #Number of CMP's for super gather
     min_vel = min_vel_entry.get()           #Minimum velocity given by the user
     max_vel = max_vel_entry.get()           #Maximum velocity given by the user
+    sm = stretch_mute_entry.get()           #Mute stretch % given by the user
 
     Section = np.zeros((ns, fold))
     i, k = 0, 0
@@ -148,7 +153,7 @@ def display_data_window():
     Offset = offset_calc(st)
     Offsetmax = int(np.amax(Offset))
     Offsetmin = int(np.amin(Offset))
-    vel = np.arange(min_vel, max_vel, (max_vel-min_vel)/11)
+    vel = np.arange(min_vel, max_vel, (max_vel-min_vel)/(11))
     vel_spectrum = functions.calc_velocity_spectrum(Section, dt_s, Offset, vel)    
     max_value = np.amax(vel_spectrum)
     vel_picks = []
@@ -175,6 +180,8 @@ min_vel_entry = IntVar()
 min_vel_entry.set("800")
 max_vel_entry = IntVar()
 max_vel_entry.set("5000")
+stretch_mute_entry = IntVar()
+stretch_mute_entry.set("30")
 
 welcome_frame = welcome_window()
 root.mainloop()
