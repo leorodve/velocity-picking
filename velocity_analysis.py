@@ -13,6 +13,9 @@ from obspy import *
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import functions
 import colorcet as cc
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.svm import SVR
+import pickle
 
 def upload():
     global filename
@@ -74,17 +77,27 @@ def export_vel_file():
 
 def close_program():
     root.destroy()
-
-def NMO_window():
-    global velocity_picks, nmo_mute, nmo_stretch_mute
+    
+def Velocity_picking_window():
     for widget in root.winfo_children():
         widget.destroy()
-    velocity_function, velocity_picks = functions.create_velocity_function(min_vel, max_vel, ns, dt, vel_picks)
+    second_plot = plot_data(Section, vel_spectrum, vm, root, 'Velocity Spectrum')
+    second_plot.get_tk_widget().grid(row=0, column=0)
+    root.bind('<Button-3>', mouse_click)
+    ttk.Button(root, text="Get gather corrected by NMO", command=NMO_window).grid(column=0, row=4, columnspan=3)
+
+def NMO_window():
+    global velocity_picks, vel_picks
+    for widget in root.winfo_children():
+        widget.destroy()
+    if not vel_picks:
+        vel_picks = ml_vel_picks
+    velocity_function, velocity_picks, vel_zeros = functions.create_velocity_function(min_vel, max_vel, ns, dt, vel_picks)
     nmo = functions.nmo_correction(Section, dt_s, Offset, velocity_function)
     nmo_stretch_mute = functions.stretch_mute(velocity_function, ns, dt_s, sm)
     nmo_mute = functions.apply_stretch_mute(nmo_stretch_mute, nmo, fold)
-    second_plot = plot_data(Section, nmo, vm, root, 'NMO corrected')
-    second_plot.get_tk_widget().grid(row=0, column=0, columnspan=2)
+    third_plot = plot_data(Section, nmo, vm, root, 'NMO corrected')
+    third_plot.get_tk_widget().grid(row=0, column=0, columnspan=2)
     ttk.Button(root, text="Close program", command=close_program).grid(column=1, row=1, columnspan=1)
     ttk.Button(root, text="Save velocity file", command=export_vel_file).grid(column=0, row=1, columnspan=1)
 
@@ -114,7 +127,7 @@ def welcome_window():
     return root
 
 def display_data_window():
-    global ns, dt, dt_s, Section, Offset, vm, Offsetmax, Offsetmin, fold, root, vel, vel_spectrum, cmp, min_vel, max_vel, black_square, vel_picks, max_value, sm
+    global ns, dt, dt_s, Section, Offset, vm, Offsetmax, Offsetmin, fold, root, vel, vel_spectrum, cmp, min_vel, max_vel, black_square, vel_picks, max_value, sm, ml_vel_picks
     
     for widget in root.winfo_children():
         widget.destroy()
@@ -149,6 +162,10 @@ def display_data_window():
 
     ttk.Label(root, text="CMP: %s"%(cmp)).grid(column=0, row=3)   
     
+    pickle_in = open("modelo.pickle", "rb")
+    model = pickle.load(pickle_in)
+    vel_prediction = model.predict(Section)
+    
     vm = np.percentile(Section, 99)
     Offset = offset_calc(st)
     Offsetmax = int(np.amax(Offset))
@@ -158,10 +175,16 @@ def display_data_window():
     max_value = np.amax(vel_spectrum)
     vel_picks = []
     first_plot = plot_data(Section, vel_spectrum, vm, root, 'Velocity Spectrum')
-    first_plot.get_tk_widget().grid(row=0, column=0)
-    root.bind('<Button-3>', mouse_click)
+    first_plot.get_tk_widget().grid(row=0, column=0, columnspan=2)
     black_square = ImageTk.PhotoImage(Image.open("black_square.png"))
-    ttk.Button(root, text="Get gather corrected by NMO", command=NMO_window).grid(column=0, row=4, columnspan=3)
+    ml_vel_picks = functions.regression_coordinates(vel_prediction, 
+                                              min_vel, max_vel, ns, 
+                                              dt, root, black_square)
+    for _, (x_coord, y_coord) in enumerate(ml_vel_picks):
+        gbr_label = ttk.Label(root, image=black_square)
+        gbr_label.place(x=x_coord-6, y=y_coord-6)
+    ttk.Button(root, text="Use these velocities", command=NMO_window).grid(column=0, row=4, columnspan=1)
+    ttk.Button(root, text="Pick my own velocities", command=Velocity_picking_window).grid(column=1, row=4, columnspan=1)
     
     return root
 
