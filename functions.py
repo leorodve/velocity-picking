@@ -12,7 +12,7 @@ def nmo_correction(cmp, dt, offsets, velocities):
     nmo = np.zeros_like(cmp) 
     nsamples = cmp.shape[0] 
     times = np.arange(0, nsamples*dt, dt) 
-    for i, t0 in enumerate(times): 
+    for i, t0 in enumerate(times):
         for j, x in enumerate(offsets): 
             t = reflection_time(t0, x, velocities[i])
             amplitude = sample_trace(cmp[:, j], t, dt)
@@ -64,15 +64,16 @@ def create_velocity_function(min_vel, max_vel, ns, dt, vel_picks):
     velocity_coordinates = np.arange(min_vel, max_vel, (max_vel-min_vel)/336)
     times_coordinates = np.arange(0, ns*dt, ns*dt/302)
     vel_function = np.zeros(ns)
+    vel_function_zeros = np.zeros(ns)
     velocity_picks = np.zeros((len(vel_picks), 2))
     for id1, (value_x, value_y) in enumerate(vel_picks):
         for id2, vel_value in enumerate(velocity_coordinates, 548):
             for id3, time_value in enumerate(times_coordinates, 48):
                 if value_x == id2 and value_y == id3:
                     velocity_picks[id1, :] = [vel_value, time_value]
-                    vel_function[int(round(time_value/dt))] = vel_value
+                    vel_function_zeros[int(round(time_value/dt))] = vel_value
     id5 = 0
-    for id4, value in enumerate(vel_function):
+    for id4, value in enumerate(vel_function_zeros):
         if id4 <= round(velocity_picks[0,1]/dt):
             vel_function[id4] = velocity_picks[0,0]
         elif id4 >= round(velocity_picks[len(velocity_picks)-1,1]/dt):
@@ -88,10 +89,44 @@ def create_velocity_function(min_vel, max_vel, ns, dt, vel_picks):
             t = [b1, b2]
             interpolator = CubicSpline(t, v) 
             vel_function[id4] = interpolator(id4)
-    return vel_function, velocity_picks
+    return vel_function, velocity_picks, vel_function_zeros
+
+def regression_coordinates(velocity_prediction, minimum_velocity, 
+                           maximum_velocity, ns, dt, root, black_square):
+    gbr_values_coord = []
+    smooth_values = []
+    for id6, gbr_value in enumerate(velocity_prediction):
+        if gbr_value >= minimum_velocity:
+            gbr_vel_coord = int(round(548 + (gbr_value - minimum_velocity) * 
+                                      336 / (maximum_velocity - 
+                                             minimum_velocity)))
+            gbr_time_coord = int(round(48 + (id6 * 302 / ns)))
+            gbr_values_coord.append([gbr_vel_coord, gbr_time_coord])
+    gbr_values_coord = np.asarray(gbr_values_coord)
+    id8 = 0
+    while id8 <= len(gbr_values_coord) - 1:
+        b = np.asarray(np.where((gbr_values_coord[:,1] >= 
+                                 (gbr_values_coord[id8,1] - 10)) & 
+                (gbr_values_coord[:,1] <= (gbr_values_coord[id8,1] + 10))))
+        num_rows, num_col = b.shape
+        if num_col > 1:
+            for _, id9 in enumerate(b):
+                c = sum(gbr_values_coord[id9, 1])
+                d = sum(gbr_values_coord[id9,0])
+            id8 = b[0,num_col-1]+1
+            smooth_values.append([int(d/num_col), int(c/num_col)])
+        else:
+            smooth_values.append([gbr_values_coord[id8,0], 
+                                  gbr_values_coord[id8,1]])
+            id8 += 1
+    smooth_values = np.asarray(smooth_values)
+
+    return smooth_values
+
 def stretch_mute(velocity, ns, dt, stretch_mute):
     time = np.arange(0, ns*dt, dt)
-    Offset_max = np.multiply(velocity, time) * pow(np.square(1 + stretch_mute/100) - 1, 0.5)
+    Offset_max = np.multiply(velocity, time) * pow(np.square(1 
+                            + stretch_mute/100) - 1, 0.5)
     return Offset_max
 
 def apply_stretch_mute(mute_function, nmo, fold):
