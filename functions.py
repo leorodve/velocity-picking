@@ -1,14 +1,13 @@
-"""
-The nmo_correction function was created by Uieda, L. and published
-on the article: Step-by-step NMO correction, The Leading Edge,
-doi:10.1190/tle36020179.1 and can be found on
-https://github.com/pinga-lab/nmo-tutorial
-"""
-
 import numpy as np 
 from scipy.interpolate import CubicSpline
 
 def nmo_correction(cmp, dt, offsets, velocities): 
+"""
+This function was created by Uieda, L. and published
+on the article: Step-by-step NMO correction, The Leading Edge,
+doi:10.1190/tle36020179.1 and can be found on
+https://github.com/pinga-lab/nmo-tutorial
+"""
     nmo = np.zeros_like(cmp) 
     nsamples = cmp.shape[0] 
     times = np.arange(0, nsamples*dt, dt) 
