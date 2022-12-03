@@ -3,7 +3,6 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
 import matplotlib
-matplotlib.use('TkAgg')
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
@@ -13,9 +12,10 @@ from obspy import *
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import functions
 import colorcet as cc
+import pickle
+
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.svm import SVR
-import pickle
 
 def upload():
     global filename
@@ -90,9 +90,10 @@ def NMO_window():
     global velocity_picks, vel_picks
     for widget in root.winfo_children():
         widget.destroy()
+
     if not vel_picks:
         vel_picks = ml_vel_picks
-    velocity_function, velocity_picks, vel_zeros = functions.create_velocity_function(min_vel, max_vel, ns, dt, vel_picks)
+    velocity_function, velocity_picks = functions.create_velocity_function(min_vel, max_vel, ns, dt, vel_picks)
     nmo = functions.nmo_correction(Section, dt_s, Offset, velocity_function)
     nmo_stretch_mute = functions.stretch_mute(velocity_function, ns, dt_s, sm)
     nmo_mute = functions.apply_stretch_mute(nmo_stretch_mute, nmo, fold)
@@ -164,6 +165,7 @@ def display_data_window():
     
     pickle_in = open("modelo.pickle", "rb")
     model = pickle.load(pickle_in)
+#    model.fit(nmo, velocity_function)
     vel_prediction = model.predict(Section)
     
     vm = np.percentile(Section, 99)
@@ -178,8 +180,7 @@ def display_data_window():
     first_plot.get_tk_widget().grid(row=0, column=0, columnspan=2)
     black_square = ImageTk.PhotoImage(Image.open("black_square.png"))
     ml_vel_picks = functions.regression_coordinates(vel_prediction, 
-                                              min_vel, max_vel, ns, 
-                                              dt, root, black_square)
+                                              min_vel, max_vel, ns)
     for _, (x_coord, y_coord) in enumerate(ml_vel_picks):
         gbr_label = ttk.Label(root, image=black_square)
         gbr_label.place(x=x_coord-6, y=y_coord-6)
